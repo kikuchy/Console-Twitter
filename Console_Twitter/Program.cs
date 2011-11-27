@@ -154,6 +154,7 @@ namespace Console_Twitter
                         }
                         else
                         {
+                            isDisposal = true;
                             switch (split[0])
                             {
                                 case "/find":
