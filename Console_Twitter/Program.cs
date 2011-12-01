@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using System.IO;
 using System.Threading;
 
 namespace Console_Twitter
@@ -88,6 +89,8 @@ namespace Console_Twitter
             twitter.BeginUserStream();
             twitter.GetTimeline();
 
+            Console.CursorVisible = true;
+
             while (true)
             {
                 string tweet = "";
@@ -96,16 +99,8 @@ namespace Console_Twitter
                 ShowUserStream();
 
                 tweet = Console.ReadLine();
-                if (tweet == null)
-                {
-                    twitter.EndUserStream();
-                    Console.Clear();
-                    Console.WriteLine("Bye.");
-
-                    Environment.Exit(0);
-                    break;
-                }
                 if (tweet == "") continue;
+                if (tweet == null) tweet = "/exit";
 
                 if ((tweet[0] == '-' || tweet[0] == '/') && (tweet.Length == 1 || (tweet.Length >= 2 && (tweet[1] != '-' && tweet[1] != '/'))))
                 {
@@ -193,7 +188,17 @@ namespace Console_Twitter
                             break;
 
                         case "/exit":
+                            twitter.EndUserStream();
+                            Console.Clear();
+                            Console.WriteLine("Bye.");
                             Environment.Exit(0);
+                            break;
+
+                        case "/boss":
+                            twitter.EndUserStream();
+                            FakeBoss.init();
+                            Console.WriteLine("Please wait..");
+                            twitter.BeginUserStream();
                             break;
 
                         default:
@@ -206,9 +211,6 @@ namespace Console_Twitter
                             goto case "/rep";
 
                         case "/replies":
-                            goto case "/rep";
-
-                        case "/re":
                             goto case "/rep";
 
                         case "/favourite":
@@ -229,6 +231,9 @@ namespace Console_Twitter
                         case "/fl":
                             goto case "/fav";
 
+                        case "/f":
+                            goto case "/fav";
+
                         case "/unfavourite":
                             goto case "/unfav";
 
@@ -241,26 +246,38 @@ namespace Console_Twitter
                         case "/unfavourites":
                             goto case "/unfav";
 
+                        case "/uf":
+                            goto case "/unfav";
+
                         case "/delete":
+                            goto case "/del";
+
+                        case "/d":
                             goto case "/del";
 
                         case "/search":
                             goto case "/find";
 
-                        case "/quit":
-                            goto case "/exit";
-
                         case "/again":
-                            goto case "/get";
-
-                        case "/a":
                             goto case "/get";
 
                         case "/refresh":
                             goto case "/get";
 
+                        case "/retweet":
+                            goto case "/rt";
+
                         case "/r":
-                            goto case "/get";
+                            goto case "/rt";
+
+                        case "/quit":
+                            goto case "/exit";
+
+                        case "/bye":
+                            goto case "/exit";
+
+                        case "/vi":
+                            goto case "/boss";
                     }
 
                     if (!Handled)
@@ -276,7 +293,7 @@ namespace Console_Twitter
         static void PrintError(string error)
         {
             Console.Write(error);
-            Thread.Sleep(3000);
+            Thread.Sleep(2000);
         }
 
         /// <summary>
