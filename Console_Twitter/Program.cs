@@ -30,11 +30,11 @@ namespace Console_Twitter
         static List<TweetInfo> temporary_tweet_list = new List<TweetInfo>();
 
         static string show_text = "What's happening? : ";
-        static Encoding text_counter = Encoding.GetEncoding("SHIFT-JIS");
+        static Encoding text_counter = Encoding.GetEncoding("Shift_JIS");
 
         static void Main(string[] args)
         {
-            TwitterLibrary twitter = new TwitterLibrary("Consumer Key", "Consumer Secret");
+            TwitterLibrary twitter = new TwitterLibrary("","");
             Settings.Load();
 
             twitter.AccessToken = Settings.AccessToken;
@@ -47,6 +47,7 @@ namespace Console_Twitter
 
             Console.WriteLine();
             Console.WriteLine("-----------------------------------------------------------");
+
             if (twitter.Status == TwitterLibraryStatus.NeedPinOrToken)
             {
                 string url = "";
@@ -56,10 +57,9 @@ namespace Console_Twitter
                 do
                 {
                     url = twitter.GetPinURL();
+
                     if (url == "" || twitter.Status == TwitterLibraryStatus.AuthorizationFailed)
-                    {
                         Thread.Sleep(1000);
-                    }
                 } while (url == "");
 
                 Process.Start(url);
@@ -71,10 +71,9 @@ namespace Console_Twitter
                 do
                 {
                     twitter.Login();
+
                     if (twitter.Status != TwitterLibraryStatus.Authorized)
-                    {
                         Thread.Sleep(1000);
-                    }
                 } while (twitter.Status != TwitterLibraryStatus.Authorized);
 
                 Settings.AccessToken = twitter.AccessToken;
@@ -87,19 +86,16 @@ namespace Console_Twitter
             Console.WriteLine("UserStream Connecting..");
             twitter.UserStreams += new Twitter_UserStream(GetUserStream);
             twitter.BeginUserStream();
-
             twitter.GetTimeline();
-
-            Console.SetCursorPosition(show_text.Length, Console.CursorSize - 1);
 
             while (true)
             {
                 string tweet = "";
 
+                Console.SetCursorPosition(show_text.Length, Console.CursorSize - 1);
                 ShowUserStream();
 
                 tweet = Console.ReadLine();
-
                 if (tweet == null)
                 {
                     twitter.EndUserStream();
@@ -109,116 +105,194 @@ namespace Console_Twitter
                     Environment.Exit(0);
                     break;
                 }
+                if (tweet == "") continue;
 
-                if (tweet[0] == '/')
+                if ((tweet[0] == '-' || tweet[0] == '/') && (tweet.Length == 1 || (tweet.Length >= 2 && (tweet[1] != '-' && tweet[1] != '/'))))
                 {
-                    int id;
-                    bool isDisposal = false;
-
+                    // イベントが処理されたかどうか。
+                    bool Handled = true;
                     string[] split = tweet.Split(" ".ToCharArray(), 3);
-                    if (split.Length >= 2)
+                    int id = 0;
+
+                    split[0] = split[0].Replace('-', '/');
+
+                    if (split.Length < 2 || !int.TryParse(split[1], out id))
                     {
-                        if (int.TryParse(split[1], out id))
+                        if (split[0].Length > 1 && int.TryParse(split[0].Substring(1), out id))
                         {
-                            var tweetinfo = tweet_list[id - 1];
-
-                            isDisposal = true;
-
-                            // COMMANDs.
-                            switch (split[0])
+                            if (id > 0)
                             {
-                                case "/rep":
+                                split = new string[3];
+
+                                if (tweet.IndexOf(" ") != -1)
+                                    split[2] = tweet.Substring(tweet.IndexOf(" ") + 1);
+                                split[0] = "/rep";
+                                split[1] = id.ToString();
+                            }
+                        }
+                    }
+
+                    TweetInfo tweetinfo = null;
+                    if (id > 0 && id <= tweet_list.Count)
+                        tweetinfo = tweet_list[id - 1];
+
+                    switch (split[0].ToLower())
+                    {
+                        case "/rep":
+                            if (tweetinfo != null)
+                            {
+                                if (split.Length > 2)
                                     twitter.Update("@" + tweetinfo.ScreenName + " " + split[2], tweetinfo.StatusID);
-                                    break;
-
-                                case "/fav":
-                                    twitter.Fav(tweetinfo.StatusID);
-                                    break;
-
-                                case "/unfav":
-                                    twitter.Unfav(tweetinfo.StatusID);
-                                    break;
-
-                                case "/del":
-                                    twitter.Remove(tweetinfo.StatusID);
-                                    break;
-
-                                case "/rt":
-                                    twitter.Retweet(tweetinfo.StatusID);
-                                    break;
-
-                                default:
-                                    isDisposal = false;
-                                    break;
+                                else
+                                    twitter.Update("@" + tweetinfo.ScreenName, tweetinfo.StatusID);
                             }
-                        }
-                        else
-                        {
-                            isDisposal = true;
-                            switch (split[0])
-                            {
-                                case "/find":
-                                    twitter.Search(split[1]);
-                                    break;
-
-                                default:
-                                    isDisposal = false;
-                                    break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        isDisposal = true;
-                        switch (split[0])
-                        {
-                            case "/rep":
+                            else
                                 twitter.GetMentions();
-                                break;
+                            break;
 
-                            case "/fav":
+                        case "/fav":
+                            if (tweetinfo != null)
+                                twitter.Fav(tweetinfo.StatusID);
+                            else
                                 twitter.GetFavorites();
-                                break;
+                            break;
 
-                            case "/get":
+                        case "/unfav":
+                            if (tweetinfo != null)
+                                twitter.Unfav(tweetinfo.StatusID);
+                            else
+                                Handled = false;
+                            break;
+
+                        case "/rt":
+                            if (tweetinfo != null)
+                                twitter.Retweet(tweetinfo.StatusID);
+                            else
+                                Handled = false;
+                            break;
+
+                        case "/del":
+                            if (tweetinfo != null)
+                                twitter.Remove(tweetinfo.StatusID);
+                            else
+                                Handled = false;
+                            break;
+
+                        case "/find":
+                            if (tweetinfo != null && split.Length >= 2)
+                                Handled = false;
+                            else
+                                twitter.Search(tweet.Substring(tweet.IndexOf(" ") + 1));
+                            break;
+
+                        case "/get":
+                            if (split.Length >= 2)
+                                twitter.GetUserTimeline(split[1]);
+                            else
                                 twitter.GetTimeline();
-                                break;
+                            break;
 
-                            default:
-                                isDisposal = false;
-                                break;
-                        }
+                        case "/exit":
+                            Environment.Exit(0);
+                            break;
 
+                        default:
+                            Handled = false;
+                            break;
+
+                    
+                    // 以下、入力間違いの補助
+                        case "/reply":
+                            goto case "/rep";
+
+                        case "/replies":
+                            goto case "/rep";
+
+                        case "/re":
+                            goto case "/rep";
+
+                        case "/favourite":
+                            goto case "/fav";
+
+                        case "/favourites":
+                            goto case "/fav";
+
+                        case "/favorite":
+                            goto case "/fav";
+
+                        case "/favorites":
+                            goto case "/fav";
+
+                        case "/faves":
+                            goto case "/fav";
+
+                        case "/fl":
+                            goto case "/fav";
+
+                        case "/unfavourite":
+                            goto case "/unfav";
+
+                        case "/unfavorite":
+                            goto case "/unfav";
+
+                        case "/unfavorites":
+                            goto case "/unfav";
+
+                        case "/unfavourites":
+                            goto case "/unfav";
+
+                        case "/delete":
+                            goto case "/del";
+
+                        case "/search":
+                            goto case "/find";
+
+                        case "/quit":
+                            goto case "/exit";
+
+                        case "/again":
+                            goto case "/get";
+
+                        case "/a":
+                            goto case "/get";
+
+                        case "/refresh":
+                            goto case "/get";
+
+                        case "/r":
+                            goto case "/get";
                     }
-                    if (!isDisposal)
-                    {
-                        if (tweet.Length > 1 && tweet[1] == '/')
-                        {
-                            twitter.Update(tweet.Substring(1), null);
-                        }
-                        else
-                        {
-                            Console.Write("[UNKNOWN COMMAND] - REF: /rep, /fav, /unfav, /rt, /del, /find");
-                            Thread.Sleep(3000);
-                        }
-                    }
 
+                    if (!Handled)
+                        PrintError("[UNKNOWN COMMAND] - REF: /rep, /fav, /unfav, /rt, /del, /find, /get");
                 }
                 else
                 {
                     twitter.Update(tweet, null);
                 }
-                Console.SetCursorPosition(show_text.Length, Console.CursorSize - 1);
             }
         }
 
+        static void PrintError(string error)
+        {
+            Console.Write(error);
+            Thread.Sleep(3000);
+        }
+
+        /// <summary>
+        /// ユーザストリームを取得する為のコールバック
+        /// </summary>
         static void GetUserStream(string statusid,string screenname,string name,string text)
         {
             if (Console.CursorLeft == show_text.Length)
             {
                 lock (tweet_list)
                 {
-                    tweet_list.Add(new TweetInfo(statusid,screenname,name,text));
+                    if (screenname == null && name == null && text == null)
+                        tweet_list.RemoveAll(e => e.StatusID == statusid);
+                    else
+                        tweet_list.Add(new TweetInfo(statusid, screenname, name, text));
+                    
                 }
                 ShowUserStream();
             }
@@ -231,6 +305,9 @@ namespace Console_Twitter
             }
         }
 
+        /// <summary>
+        /// 画面上にTL を表示するためのメソッド
+        /// </summary>
         static void ShowUserStream()
         {
             lock (tweet_list)
@@ -245,7 +322,14 @@ namespace Console_Twitter
 
                     if (temporary_tweet_list.Count != 0)
                     {
+                        List<string> remove_list = new List<string>();
+
+                        remove_list.AddRange(temporary_tweet_list.Select(x => x.ScreenName == null ? x.StatusID : null));
+                        temporary_tweet_list.RemoveAll(x => x.ScreenName == null);
+
                         tweet_list.AddRange(temporary_tweet_list);
+                        tweet_list.RemoveAll(x => remove_list.Contains(x.StatusID));
+
                         temporary_tweet_list.Clear();
                     }
 

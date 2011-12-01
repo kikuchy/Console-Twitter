@@ -503,41 +503,70 @@ namespace Console_Twitter
         /// </summary>
         private void GetUserStream(object o)
         {
-            WebResponse r;
-            do{
-                r = BasicTwitterAccess("GET", this._follow_userstream_url);
-                if(r == null)
-                    Thread.Sleep(300);
-            }while(r == null);
-
-            var stream = new StreamReader(r.GetResponseStream());
-
             while (true)
             {
-                try
+                WebResponse r;
                 {
-                    var text = stream.ReadLine();
-                    if (text != null && this.UserStreams != null)
+                    int counter = 0;
+                    do
                     {
-                        if (text.Length > 0)
+                        r = BasicTwitterAccess("GET", this._follow_userstream_url);
+                        if (r == null)
                         {
-                            var tweet = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(text);
-                            if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
+                            Thread.Sleep(2000);
+                            counter++;
+                            if (counter == 2)
                             {
-                                var user = tweet["user"] as Dictionary<string, object>;
-                                this.UserStreams(tweet["id_str"] as string, user["screen_name"] as string, user["name"] as string, tweet["text"] as string);
+                                // UserStream が２回失敗した場合は、通常取得を１回行う。
+                                this.GetTimeline();
+                                counter = 0;
                             }
+<<<<<<< HEAD
+=======
+                        }
+                    } while (r == null);
+                }
+                var stream = new StreamReader(r.GetResponseStream());
+
+                while (true)
+                {
+                    try
+                    {
+                        var text = stream.ReadLine();
+                        if (text != null && this.UserStreams != null)
+                        {
+                            if (text.Length > 0)
+                            {
+                                var tweet = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(text);
+                                if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
+                                {
+                                    var user = tweet["user"] as Dictionary<string, object>;
+                                    this.UserStreams(tweet["id_str"] as string, user["screen_name"] as string, user["name"] as string, tweet["text"] as string);
+                                }
+                                else if (tweet.ContainsKey("delete"))
+                                {
+                                    var info = (tweet["delete"] as Dictionary<string, object>)["status"] as Dictionary<string, object>;
+                                    this.UserStreams(info["id_str"] as string, null, null, null);
+                                }
+                            }
+>>>>>>> 665bb28... 01. Refactoring at Command processing code.
+                        }
+                        else
+                        {
+                            Thread.Sleep(100);
                         }
                     }
-                    else
-                    {
-                        Thread.Sleep(10);
-                    }
+                    catch { break; }
                 }
+<<<<<<< HEAD
                 catch
                 {
                     break;
                 }
+=======
+                try { r.Close(); }
+                catch { }
+>>>>>>> 665bb28... 01. Refactoring at Command processing code.
             }
         }
 

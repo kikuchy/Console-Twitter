@@ -19,7 +19,6 @@ namespace Console_Twitter
 
         #endregion
 
-
         #region Properties
 
         /// <summary>
@@ -41,7 +40,6 @@ namespace Console_Twitter
         }
 
         #endregion
-
 
         #region Functions
 
