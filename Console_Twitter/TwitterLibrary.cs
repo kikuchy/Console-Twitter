@@ -45,9 +45,13 @@ namespace Console_Twitter
 
     /// <summary>
     /// UserStream が受信された時に実行される。
+    /// (削除の際は Status ID を除いた残りが全部 NULL となる。）
     /// </summary>
-    /// <param name="str">ツイート内容</param>
-    delegate void Twitter_UserStream(string statusid,string screenname,string name,string text);
+    /// <param name="statusid">Status ID</param>
+    /// <param name="name">名前 : ex) みむら</param>
+    /// <param name="screenname">ID : ex) mimura1133</param>
+    /// <param name="text">つぶやき内容</param>
+    delegate void Twitter_UserStream(string statusid, string screenname, string name, string text);
 
     class TwitterLibrary
     {
@@ -84,6 +88,7 @@ namespace Console_Twitter
         private string _mentions_url = "https://api.twitter.com/1/statuses/mentions.json";
         private string _getfavorites_url = "https://api.twitter.com/1/favorites.json";
         private string _gettimeline_url = "https://api.twitter.com/1/statuses/home_timeline.json";
+        private string _getusertimeline_url = "https://api.twitter.com/1/statuses/user_timeline.json";
 
         #endregion
 
@@ -244,7 +249,7 @@ namespace Console_Twitter
         /// <param name="str">つぶやき内容</param>
         /// <param name="reply_status_id">Reply を送るときの対象ID</param>
         /// <returns>成功かどうか</returns>
-        public bool Update(string str, string reply_status_id)
+        public bool Update(string str, string reply_status_id = null)
         {
             string nonce = GetNonce();
             long time = GetTime();
@@ -306,7 +311,7 @@ namespace Console_Twitter
 
             return v != null;
         }
-        
+
         /// <summary>
         /// リツイート
         /// </summary>
@@ -339,7 +344,7 @@ namespace Console_Twitter
         /// <param name="query">検索</param>
         public void Search(string query)
         {
-            HttpWebRequest hwr = (HttpWebRequest)HttpWebRequest.Create(this._search_url+"?q="+UrlEncode(query));
+            HttpWebRequest hwr = (HttpWebRequest)HttpWebRequest.Create(this._search_url + "?q=" + UrlEncode(query));
             hwr.Method = "GET";
 
             WebResponse r = null;
@@ -359,11 +364,11 @@ namespace Console_Twitter
             if (r != null)
             {
                 var stream = new StreamReader(r.GetResponseStream());
-                var tweets = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(stream.ReadToEnd());
+                var tweets = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(stream.ReadToEnd())["results"] as ArrayList;
 
-                foreach (var v in tweets["results"] as ArrayList)
+                for (int i = tweets.Count - 1; i >= 0; i--)
                 {
-                    var info = v as Dictionary<string, object>;
+                    var info = tweets[i] as Dictionary<string, object>;
                     UserStreams(info["id_str"] as string, info["from_user"] as string, info["from_user_name"] as string, info["text"] as string);
                 }
             }
@@ -382,9 +387,9 @@ namespace Console_Twitter
                 var stream = new StreamReader(r.GetResponseStream());
                 var tweets = new JavaScriptSerializer().Deserialize<ArrayList>(stream.ReadToEnd());
 
-                foreach (object o in tweets)
+                for (int i = tweets.Count - 1; i >= 0; i--)
                 {
-                    var tweet = o as Dictionary<string, object>;
+                    var tweet = tweets[i] as Dictionary<string, object>;
 
                     if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
                     {
@@ -408,9 +413,9 @@ namespace Console_Twitter
                 var stream = new StreamReader(r.GetResponseStream());
                 var tweets = new JavaScriptSerializer().Deserialize<ArrayList>(stream.ReadToEnd());
 
-                foreach (object o in tweets)
+                for (int i = tweets.Count - 1; i >= 0; i--)
                 {
-                    var tweet = o as Dictionary<string, object>;
+                    var tweet = tweets[i] as Dictionary<string, object>;
 
                     if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
                     {
@@ -434,15 +439,53 @@ namespace Console_Twitter
                 var stream = new StreamReader(r.GetResponseStream());
                 var tweets = new JavaScriptSerializer().Deserialize<ArrayList>(stream.ReadToEnd());
 
-                foreach (object o in tweets)
+                for (int i = tweets.Count - 1; i >= 0; i--)
                 {
-                    var tweet = o as Dictionary<string, object>;
+                    var tweet = tweets[i] as Dictionary<string, object>;
 
                     if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
                     {
                         var user = tweet["user"] as Dictionary<string, object>;
                         this.UserStreams(tweet["id_str"] as string, user["screen_name"] as string, user["name"] as string, tweet["text"] as string);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定ユーザの直近２０件のタイムラインを取得する。
+        /// <param name="screenname">Twitter ID ex.) mimura1133</param>
+        /// </summary>
+        public void GetUserTimeline(string screenname)
+        {
+            HttpWebRequest hwr = (HttpWebRequest)HttpWebRequest.Create(this._getusertimeline_url + "?include_entities=true&screen_name=" + screenname);
+            hwr.Method = "GET";
+
+            WebResponse r = null;
+
+            try
+            {
+                r = hwr.GetResponse();
+            }
+            catch
+            {
+                this._status = TwitterLibraryStatus.Failed;
+                return;
+            }
+
+            this._status = TwitterLibraryStatus.Success;
+
+            var stream = new StreamReader(r.GetResponseStream());
+            var tweets = new JavaScriptSerializer().Deserialize<ArrayList>(stream.ReadToEnd());
+
+            for (int i = tweets.Count - 1; i >= 0; i--)
+            {
+                var tweet = tweets[i] as Dictionary<string, object>;
+
+                if (tweet.ContainsKey("user") && tweet.ContainsKey("text"))
+                {
+                    var user = tweet["user"] as Dictionary<string, object>;
+                    this.UserStreams(tweet["id_str"] as string, user["screen_name"] as string, user["name"] as string, tweet["text"] as string);
                 }
             }
         }
@@ -521,8 +564,6 @@ namespace Console_Twitter
                                 this.GetTimeline();
                                 counter = 0;
                             }
-<<<<<<< HEAD
-=======
                         }
                     } while (r == null);
                 }
@@ -549,7 +590,6 @@ namespace Console_Twitter
                                     this.UserStreams(info["id_str"] as string, null, null, null);
                                 }
                             }
->>>>>>> 665bb28... 01. Refactoring at Command processing code.
                         }
                         else
                         {
@@ -558,15 +598,8 @@ namespace Console_Twitter
                     }
                     catch { break; }
                 }
-<<<<<<< HEAD
-                catch
-                {
-                    break;
-                }
-=======
                 try { r.Close(); }
                 catch { }
->>>>>>> 665bb28... 01. Refactoring at Command processing code.
             }
         }
 
@@ -603,7 +636,7 @@ namespace Console_Twitter
             this._status = TwitterLibraryStatus.Success;
             return r;
         }
-        
+
         #endregion
 
         #region Utility
